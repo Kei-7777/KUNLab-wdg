@@ -263,7 +263,11 @@ void clean() {
   var files = Directory.current.listSync(recursive: false, followLinks: false);
   for (var file in files) {
     print(file.path);
-    if (file is File && basename(file.path) != 'gen.dart' && basename(file.path) != 'gen.dart.snapshot' && basename(file.path) != 'pubspec.yaml') {
+    if (file is File && 
+    basename(file.path) != 'gen.dart' && 
+    basename(file.path) != 'gen.dart.snapshot' && 
+    basename(file.path) != 'pubspec.yaml' &&
+    basename(file.path) != 'generate.bat') {
       file.deleteSync();
       print("Delete ${file.path}");
     } else {
