@@ -1,12 +1,17 @@
 import 'dart:core';
 import 'dart:io';
-import 'package:path/path.dart' show basename;
+import 'dart:convert';
+import 'package:path/path.dart' show basename, join;
+import 'package:http/http.dart' as http;
 
 void main(List<String> args) async {
   if (args.length < 6) {
     if (args.length == 1) {
       if (args[0] == 'clean') {
         clean();
+        exit(1);
+      } else if (args[0] == 'refreshutils') {
+        await refreshUtils();
         exit(1);
       } else {
         print('Usage: dart gen.dart <mc_version> <plugin_name> <package_name> <mainclass_name> <author_name> <outdir>');
@@ -257,6 +262,79 @@ ${authorName}  ''');
 
   print("Good Bye!");
 
+}
+
+Future<void> refreshUtils() async {
+  var files = Directory.current.listSync(recursive: true, followLinks: false);
+  bool next = false;
+  String path = "";
+  String package = "";
+  for (var file in files) {
+    if (basename(file.path) == 'lab') {
+      next = true;
+      continue;
+    }
+    if (next) {
+      path = file.path;
+      package = basename(file.path);
+      break;
+    }
+  }
+
+  if (package == "" || path == "") {
+    print("Error: lab folder not found");
+    return;
+  }
+
+  print("Refresh Utils");
+  files = Directory(path).listSync(recursive: false, followLinks: false);
+  bool found = false;
+  for (var file in files) {
+    if (basename(file.path) == 'Utils.java') {
+      found = true;
+      print("Found Utils.java");
+      file.deleteSync();
+      Uri url = Uri.parse('https://raw.githubusercontent.com/Kei-7777/wdg-UtilsPackage/main/Utils.java');
+      var request = await http.get(url);
+      var utils = await File(file.path).create(recursive: true);
+      await utils.writeAsString(request.body);
+
+      var content = await utils.readAsString();
+      content = content.replaceAll('%package%', package);
+      await utils.writeAsString(content);
+      break;
+    }
+  }
+
+  if (!found) {
+    /*
+    print("Not found Utils.java");
+    Uri url = Uri.parse('https://raw.githubusercontent.com/Kei-7777/wdg-UtilsPackage/main/Utils.java');
+    print("Downloading Utils.java");
+    var request = await http.read(url);
+    print("Downloaded Utils.java");
+    path = join(path, 'Utils.java');
+    var utils = await File(path).create(recursive: true);
+    await utils.writeAsString(request);
+    print(request);
+    */
+
+    path = join(path, 'Utils.java');
+    var utils = await File(path).create(recursive: false);
+    var request = await HttpClient().getUrl(Uri.parse('https://raw.githubusercontent.com/Kei-7777/wdg-UtilsPackage/main/Utils.java'));
+    var response = await request.close();
+    var responseBodyText = await utf8.decodeStream(response);
+
+    await utils.writeAsString(responseBodyText);
+    print(responseBodyText);
+
+    var content = await utils.readAsString();
+    content = content.replaceAll('%package%', package);
+    await utils.writeAsString(content);
+  }
+
+  print("Refresh Utils.java");
+  exit(1);
 }
 
 void clean() {
