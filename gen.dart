@@ -1,5 +1,6 @@
 import 'dart:core';
 import 'dart:io';
+import 'package:path/path.dart' show basename;
 
 void main(List<String> args) async {
   if (args.length < 6) {
@@ -22,6 +23,14 @@ void main(List<String> args) async {
   String mainClassName = args[3];
   String authorName = args[4];
   String outDir = args[5];
+
+  print('Cleanup...');
+  clean();
+  print('Generating plugin for Minecraft $mcVersion');
+  print('Plugin name: $pluginName');
+  print('Package name: $packageName');
+  print('Main class name: $mainClassName');
+  print('Author name: $authorName');
 
   print("Generating plugin '$pluginName' for package '$packageName'");
   var mainDir = await Directory('src/main/java/net/kunmc/lab/${packageName.replaceAll('.', '/')}').create(recursive: true);
@@ -205,7 +214,14 @@ SOFTWARE.''');
 *.idea/
 *.idea/*.xml
 hs_err_pid*
-.idea/''');
+.idea/
+.packages
+.pubspec.lock
+.dart_tool/
+.dart_tool/build/
+.dart_tool/pubspec.lock
+.dart_tool/package_config.json
+.dart_tool/package_config.json.sum''');
 
   print("Generating README.md");
   var readme = await File('README.md').create(recursive: true);
@@ -228,7 +244,6 @@ MIT License
 
 ${authorName}  ''');
 
-  // check generate files if success
   print("Checking generate files");
   check('pom.xml');
   check('LICENSE');
@@ -248,7 +263,7 @@ void clean() {
   var files = Directory.current.listSync(recursive: false, followLinks: false);
   for (var file in files) {
     print(file.path);
-    if (file is File && file.path != './gen.dart') {
+    if (file is File && basename(file.path) != 'gen.dart' && basename(file.path) != 'gen.dart.snapshot' && basename(file.path) != 'pubspec.yaml') {
       file.deleteSync();
       print("Delete ${file.path}");
     } else {
