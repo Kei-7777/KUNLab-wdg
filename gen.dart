@@ -44,7 +44,7 @@ package net.kunmc.lab.${packageName};
 
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class ${mainClassName} extends JavaPlugin {
+public final class ${mainClassName} extends JavaPlugin {
 
     @Override
     public void onEnable() {
