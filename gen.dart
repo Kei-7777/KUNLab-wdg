@@ -1,11 +1,12 @@
 import 'dart:core';
+import 'dart:developer';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' show basename, join;
 import 'package:http/http.dart' as http;
 
 void main(List<String> args) async {
-  if (args.length < 6) {
+  if (args.length < 5) {
     if (args.length == 1) {
       if (args[0] == 'clean') {
         clean();
@@ -14,11 +15,11 @@ void main(List<String> args) async {
         await refreshUtils();
         exit(1);
       } else {
-        print('Usage: dart gen.dart <mc_version> <plugin_name> <package_name> <mainclass_name> <author_name> <outdir>');
+        print('Usage: dart gen.dart <mc_version> <plugin_name> <package_name> <mainclass_name> <author_name>');
         exit(1);
       }
     }
-    print('Usage: dart gen.dart <mc_version> <plugin_name> <package_name> <mainclass_name> <author_name> <outdir>');
+    print('Usage: dart gen.dart <mc_version> <plugin_name> <package_name> <mainclass_name> <author_name>');
     exit(1);
   }
 
@@ -27,7 +28,7 @@ void main(List<String> args) async {
   String packageName = args[2];
   String mainClassName = args[3];
   String authorName = args[4];
-  String outDir = args[5];
+  String outDir = "./server/plugins/";
 
   print('Cleanup...');
   clean();
@@ -38,8 +39,96 @@ void main(List<String> args) async {
   print('Author name: $authorName');
 
   print("Generating plugin '$pluginName' for package '$packageName'");
-  var mainDir = await Directory('src/main/java/net/kunmc/lab/${packageName.replaceAll('.', '/')}').create(recursive: true);
-  var resourceDir = await Directory('src/main/resources/').create(recursive: true);
+  Directory mainDir = await Directory('src/main/java/net/kunmc/lab/${packageName.replaceAll('.', '/')}').create(recursive: true);
+  Directory resourceDir = await Directory('src/main/resources/').create(recursive: true);
+  Directory serverDir = await Directory('server/').create(recursive: true);
+  Directory pluginDir = await Directory('server/plugins/').create(recursive: true);
+  File serverJar = await File('server/server.jar').create(recursive: true);
+
+  print("Generating TestServer");
+  Uri url = Uri.parse('https://papermc.io/api/v2/projects/paper/versions/1.16.5/builds/794/downloads/paper-1.16.5-794.jar');
+  new HttpClient().getUrl(url)
+    .then((HttpClientRequest request) => request.close())
+    .then((HttpClientResponse response) => 
+        response.pipe(serverJar.openWrite()));
+  
+  print("Generating ServerUtils");
+  File eula = await File('server/eula.txt');
+  if (eula.existsSync()) {
+    eula.deleteSync();
+  }
+  await eula.create(recursive: true);
+  await eula.writeAsString('''
+eula=true''');
+
+  print("Generating server.properties");
+  File serverProperties = await File('server/server.properties');
+  if (serverProperties.existsSync()) {
+    serverProperties.deleteSync();
+  }
+  await serverProperties.create(recursive: true);
+  await serverProperties.writeAsString('''
+#Minecraft server properties
+spawn-protection=0
+max-tick-time=60000
+query.port=25565
+generator-settings=
+sync-chunk-writes=true
+force-gamemode=false
+allow-nether=true
+enforce-whitelist=false
+gamemode=survival
+broadcast-console-to-ops=true
+enable-query=false
+player-idle-timeout=0
+text-filtering-config=
+difficulty=easy
+spawn-monsters=true
+broadcast-rcon-to-ops=true
+op-permission-level=4
+pvp=true
+entity-broadcast-range-percentage=100
+snooper-enabled=true
+level-type=default
+hardcore=false
+enable-status=true
+enable-command-block=true
+max-players=20
+network-compression-threshold=256
+resource-pack-sha1=
+max-world-size=29999984
+function-permission-level=2
+rcon.port=25575
+server-port=25565
+debug=false
+server-ip=
+spawn-npcs=true
+allow-flight=true
+level-name=world
+view-distance=10
+resource-pack=
+spawn-animals=true
+white-list=false
+rcon.password=
+generate-structures=true
+online-mode=false
+max-build-height=256
+level-seed=
+prevent-proxy-connections=false
+use-native-transport=true
+enable-jmx-monitoring=false
+motd=A Minecraft Server
+rate-limit=0
+enable-rcon=false''');
+
+  print("Generating BileTools");
+  Directory bileToolsDir = await Directory('server/').create(recursive: true);
+  String uri = 'https://github.com/Kei-7777/BileTools-Rework.git';
+  String gitCmd = 'C:\\Program Files\\Git\\bin\\git.exe';
+  String mvnCmd = 'C:\\ProgramData\\chocolatey\\lib\\maven\\apache-maven-3.8.4\\bin\\mvn.cmd';
+  await Process.run(gitCmd, ['clone', uri, 'server/BileTools-Rework']);
+  await Process.run(mvnCmd, ['clean', 'package'], workingDirectory: 'server/BileTools-Rework');
+  await File('server/BileTools-Rework/out/BileTools-Rework.jar').copy('server/plugins/BileTools-Rework.jar');
 
   print("Generating main class '$mainClassName'");
   var mainFile = await File('${mainDir.path}/${mainClassName}.java').create(recursive: true);
@@ -259,6 +348,8 @@ ${authorName}  ''');
   check("src/main/java/net/kunmc/lab/${packageName}/${mainClassName}.java");
   check("src/main/resources/");
   check("src/main/resources/plugin.yml");
+
+  check("server/");
 
   print("Good Bye!");
 
